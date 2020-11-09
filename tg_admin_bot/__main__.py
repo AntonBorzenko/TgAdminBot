@@ -16,7 +16,7 @@ def update_logger():
 
 
 @click.command()
-@click.option('-t', '--token', type=str, envvar='TOKEN')
+@click.option('-t', '--token', type=str, envvar='TOKEN', required=True)
 def start_bot(token):
     update_logger()
     bot = AdminBot(token)
