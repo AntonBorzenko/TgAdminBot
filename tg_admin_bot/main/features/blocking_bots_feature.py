@@ -73,8 +73,8 @@ class BlockingBotsFeature(Feature):
     def _on_apply_feature(self):
         self.dispatcher.register_message_handler(self._on_new_chat_members,
                                                  content_types=types.ContentType.NEW_CHAT_MEMBERS)
-        self.dispatcher.register_message_handler(self._on_message,
-                                                 content_types=types.ContentType.TEXT)
+        self.dispatcher.register_message_handler(self._on_new_message,
+                                                 content_types=types.ContentType.ANY)
 
     def _create_user_blocker(self, chat_id):
         if chat_id not in self._user_blockers:
@@ -82,7 +82,7 @@ class BlockingBotsFeature(Feature):
             user_blocker.on_block_user(self._get_block_user_func(chat_id))
             self._user_blockers[chat_id] = user_blocker
 
-    async def _on_message(self, event: types.Message):
+    async def _on_new_message(self, event: types.Message):
         chat_id = event.chat.id
 
         if chat_id > 0:
@@ -94,6 +94,8 @@ class BlockingBotsFeature(Feature):
         )
 
     async def _on_new_chat_members(self, event: types.Message):
+        await self._on_new_message(event)
+
         chat_id = event.chat.id
         if chat_id > 0:
             return
