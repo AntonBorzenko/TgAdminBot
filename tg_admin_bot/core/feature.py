@@ -11,12 +11,12 @@ class Feature(ABC):
     def apply_to(self, bot: Bot, dispatcher: Dispatcher):
         if self._applied:
             raise ValueError('Feature should be applied only once')
-        self._applied = True
 
         self.bot = bot
         self.dispatcher = dispatcher
 
         self._on_apply_feature()
+        self._applied = True
 
     @abstractmethod
     def _on_apply_feature(self):

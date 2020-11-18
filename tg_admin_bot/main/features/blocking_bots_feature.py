@@ -1,5 +1,6 @@
 import typing
 import logging
+from functools import partial
 
 from aiogram import types, exceptions
 
@@ -79,10 +80,15 @@ class BlockingBotsFeature(Feature):
     def _create_user_blocker(self, chat_id):
         if chat_id not in self._user_blockers:
             user_blocker = UserBlocker(self._min_user_queue, self._timer)
-            user_blocker.on_block_user(self._get_block_user_func(chat_id))
+
+            # noinspection PyTypeChecker
+            user_blocker.on_block_user(partial(self._block_user, chat_id))
             self._user_blockers[chat_id] = user_blocker
 
     async def _on_new_message(self, event: types.Message):
+        await self._process_new_message(event)
+
+    async def _process_new_message(self, event: types.Message):
         chat_id = event.chat.id
 
         if chat_id > 0:
@@ -94,8 +100,10 @@ class BlockingBotsFeature(Feature):
         )
 
     async def _on_new_chat_members(self, event: types.Message):
-        await self._on_new_message(event)
+        await self._process_new_message(event)
+        await self._process_new_member(event)
 
+    async def _process_new_member(self, event: types.Message):
         chat_id = event.chat.id
         if chat_id > 0:
             return
@@ -106,19 +114,17 @@ class BlockingBotsFeature(Feature):
                 log.info(f'User#{chat_member.id} is joined to chat#{chat_id}')
                 await self._user_blockers[chat_id].add_user(chat_member.id, int(event.date.timestamp()))
 
-    def _get_block_user_func(self, chat_id: int):
-        async def block_user(user_id: int, messages_ids: typing.List[int]):
-            log.info(f'Blocking user#{user_id} and deleting messages {messages_ids}')
-            try:
-                for message_id in messages_ids:
-                    await self.bot.delete_message(chat_id, message_id)
-            except exceptions.TelegramAPIError:
-                log.error(f'Cannot delete messages {messages_ids} from user#{user_id} in chat#{chat_id}')
-                await self.bot.send_message(chat_id, 'I don\'t have permissions to delete messages, please fix it')
+    async def _block_user(self, chat_id: int, user_id: int, messages_ids: typing.List[int]):
+        log.info(f'Blocking user#{user_id} and deleting messages {messages_ids}')
+        try:
+            for message_id in messages_ids:
+                await self.bot.delete_message(chat_id, message_id)
+        except exceptions.TelegramAPIError:
+            log.error(f'Cannot delete messages {messages_ids} from user#{user_id} in chat#{chat_id}')
+            await self.bot.send_message(chat_id, 'I don\'t have permissions to delete messages, please fix it')
 
-            try:
-                await self.bot.kick_chat_member(chat_id, user_id)
-            except exceptions.TelegramAPIError:
-                log.error(f'Cannot kick user#{user_id} from chat#{chat_id}')
-                await self.bot.send_message(chat_id, 'I don\'t have permissions to kick spam bots, please fix it')
-        return block_user
+        try:
+            await self.bot.kick_chat_member(chat_id, user_id)
+        except exceptions.TelegramAPIError:
+            log.error(f'Cannot kick user#{user_id} from chat#{chat_id}')
+            await self.bot.send_message(chat_id, 'Sorry, I don\'t have permissions to kick users')
