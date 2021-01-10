@@ -7,7 +7,7 @@ from . import update_logger
 
 
 @click.command()
-@click.option('-t', '--token', type=str, envvar='TOKEN', required=True)
+@click.option('-t', '--token', type=str, envvar='TG_TOKEN', required=True)
 def start_bot(token):
     update_logger()
 
